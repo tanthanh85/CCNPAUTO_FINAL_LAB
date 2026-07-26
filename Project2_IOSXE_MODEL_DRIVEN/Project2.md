@@ -16,6 +16,19 @@ Project 2 is worth **50 points**.
 | 2 | Complete the Vault credential retrieval function | 20 |
 | 3 | Locate and place RESTCONF monitoring URIs for CPU, memory, and GigabitEthernet1 | 15 |
 
+## Project Repository
+
+Complete this assessment inside the cloned GitLab repository:
+
+```text
+~/ccnpauto-workspace/final_assessment/ccnpauto-final-project2-iosxe
+```
+
+Before beginning Task 1, follow the main assessment guide to create the
+private `ccnpauto-final-project2-iosxe` project, clone it, and use VS Code to
+copy all supplied Project 2 starter content into the clone, including
+`.env.example`. Confirm that the starter commit has been pushed to GitLab.com.
+
 ## Project Files
 
 ```text
@@ -246,3 +259,20 @@ reserved router.
 ## Notes
 
 If a RESTCONF or NETCONF path does not work on your IOS XE sandbox release, verify the model with local or Cisco DevNet Sandbox Yangsuite. The model exposed by the device is authoritative.
+
+## Submit Project 2
+
+After the grader reports the expected result and the router and portal have
+been verified, review `git status`. Stage only the solution files; do not
+stage `.env`, credentials, Vault tokens, or `final_lab2`.
+
+```bash
+git add data/static_routes.yaml templates/static_routes.xml.j2
+git add src/vault_credentials.py src/restconf_monitor.py
+git commit -m "Complete IOS XE model-driven automation assessment"
+git push origin main
+git status
+```
+
+Open the GitLab.com project and confirm that the latest commit and completed
+source files are visible.

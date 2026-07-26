@@ -42,16 +42,95 @@ vault status
 
 If `vault status` fails, start the development server in a dedicated terminal and recreate the assessment secret. For local Yangsuite, start it from `~/lab-services/yangsuite/docker`; otherwise open Cisco DevNet Sandbox Yangsuite at `http://10.10.20.50:8480`.
 
-## Suggested Working Directory
+## Create the Two GitLab Projects
 
-Create `~/ccnpauto-workspace/final_assessment`. Using the VS Code Explorer, copy and paste the complete `Project1_NXOS_CLI_VLAN` and `Project2_IOSXE_MODEL_DRIVEN` folders from `CCNPAUTO/LAB/FinalLab/` into that working directory.
+Each assessment project must have its own private GitLab.com repository. Do
+not place both projects in one repository.
+
+Create these projects:
+
+| Assessment project | GitLab project name |
+|---|---|
+| Project 1 | `ccnpauto-final-project1-nxos` |
+| Project 2 | `ccnpauto-final-project2-iosxe` |
+
+For each project:
+
+1. Sign in to GitLab.com.
+2. Select **New project/repository**.
+3. Select **Create blank project**.
+4. Enter the project name shown in the table.
+5. Set **Visibility Level** to **Private**.
+6. Clear **Initialize repository with a README**. The supplied assessment
+   files will provide the first commit.
+7. Select **Create project**.
+8. On the new project page, select **Code > Clone with SSH** and copy the SSH
+   URL. Use **Clone with HTTPS** only if SSH access has not been configured.
+
+## Clone the Two Repositories
+
+Create the assessment workspace:
 
 ```bash
 mkdir -p ~/ccnpauto-workspace/final_assessment
 cd ~/ccnpauto-workspace/final_assessment
 ```
 
-Create one GitLab.com repository named `ccnpauto_final_assessment` if your instructor asks you to submit through Git. Otherwise, you can work locally and submit the completed folder.
+Clone both empty repositories, replacing `<gitlab-username>` with the
+learner's GitLab.com namespace:
+
+```bash
+git clone git@gitlab.com:<gitlab-username>/ccnpauto-final-project1-nxos.git
+git clone git@gitlab.com:<gitlab-username>/ccnpauto-final-project2-iosxe.git
+```
+
+If Git reports that an empty repository was cloned, that is expected.
+
+## Copy the Starter Files with VS Code
+
+Use VS Code rather than an Ubuntu `cp` command so the source and destination
+are visually clear.
+
+For Project 1:
+
+1. Open a new VS Code window and open the supplied
+   `CCNPAUTO_FINAL_LAB/Project1_NXOS_CLI_VLAN/` folder.
+2. Open a second VS Code window and open the cloned
+   `~/ccnpauto-workspace/final_assessment/ccnpauto-final-project1-nxos/`
+   folder.
+3. In the source Explorer, select `Project1.md`, `requirements.txt`, `data`,
+   `scripts`, `src`, and `templates`.
+4. Copy and paste those items into the root of the cloned repository.
+
+For Project 2:
+
+1. Open the supplied
+   `CCNPAUTO_FINAL_LAB/Project2_IOSXE_MODEL_DRIVEN/` folder in VS Code.
+2. Open the cloned
+   `~/ccnpauto-workspace/final_assessment/ccnpauto-final-project2-iosxe/`
+   folder in another VS Code window.
+3. Select and copy all supplied Project 2 files and folders, including the
+   hidden `.env.example`.
+4. Paste them into the root of the cloned repository.
+
+Copy only the contents of the two supplied project folders. Do not copy the
+top-level `CCNPAUTO_FINAL_LAB/.git` folder into either learner repository.
+
+Create a starter commit in each clone before solving the tasks:
+
+```bash
+cd ~/ccnpauto-workspace/final_assessment/ccnpauto-final-project1-nxos
+git add .
+git commit -m "Add Project 1 starter files"
+git branch -M main
+git push -u origin main
+
+cd ~/ccnpauto-workspace/final_assessment/ccnpauto-final-project2-iosxe
+git add .
+git commit -m "Add Project 2 starter files"
+git branch -M main
+git push -u origin main
+```
 
 ## Python Environment and Required Libraries
 
@@ -63,7 +142,7 @@ hide a dependency fault in the other project. Name the Project 1 environment
 Prepare Project 1 first:
 
 ```bash
-cd ~/ccnpauto-workspace/final_assessment/Project1_NXOS_CLI_VLAN
+cd ~/ccnpauto-workspace/final_assessment/ccnpauto-final-project1-nxos
 python3 -m venv final_lab1
 source final_lab1/bin/activate
 python -m pip install --upgrade pip
@@ -74,7 +153,7 @@ After finishing Project 1, deactivate its environment and prepare Project 2:
 
 ```bash
 deactivate
-cd ~/ccnpauto-workspace/final_assessment/Project2_IOSXE_MODEL_DRIVEN
+cd ~/ccnpauto-workspace/final_assessment/ccnpauto-final-project2-iosxe
 python3 -m venv final_lab2
 source final_lab2/bin/activate
 python -m pip install --upgrade pip
@@ -109,12 +188,24 @@ Each Project 1 task is worth 10 points, for a total of 50.
 Run the self-grader from the project folder:
 
 ```bash
-cd ~/ccnpauto-workspace/final_assessment/Project1_NXOS_CLI_VLAN
+cd ~/ccnpauto-workspace/final_assessment/ccnpauto-final-project1-nxos
 python -m pip install -r requirements.txt
 python scripts/grade_project1.py
 ```
 
 Project 1 is worth **50 points**.
+
+After completing and verifying Project 1, stage only the solution source files.
+Do not stage the learner-created secret file or the `final_lab1` virtual
+environment:
+
+```bash
+git status
+git add requirements.txt templates/vlans.j2 src/device.py scripts/apply_vlans.py
+git commit -m "Complete NX-OS VLAN automation assessment"
+git push origin main
+git status
+```
 
 ## Project 2 Overview: Model-Driven Automation and Monitoring
 
@@ -129,12 +220,25 @@ You need to complete three tasks:
 Run the self-grader from the project folder:
 
 ```bash
-cd ~/ccnpauto-workspace/final_assessment/Project2_IOSXE_MODEL_DRIVEN
+cd ~/ccnpauto-workspace/final_assessment/ccnpauto-final-project2-iosxe
 python -m pip install -r requirements.txt
 python scripts/grade_project2.py
 ```
 
 Project 2 is worth **50 points**.
+
+After completing and verifying Project 2, stage only the files changed by the
+solution. Do not stage `.env`, Vault tokens, passwords, or the `final_lab2`
+virtual environment:
+
+```bash
+git status
+git add data/static_routes.yaml templates/static_routes.xml.j2
+git add src/vault_credentials.py src/restconf_monitor.py
+git commit -m "Complete IOS XE model-driven automation assessment"
+git push origin main
+git status
+```
 
 ## Submission Evidence
 

@@ -18,6 +18,19 @@ Project 1 is worth **50 points**.
 | 4 | Troubleshoot and correct the Netmiko `device` dictionary | 10 |
 | 5 | Handle Netmiko authentication and connection timeout failures | 10 |
 
+## Project Repository
+
+Complete this assessment inside the cloned GitLab repository:
+
+```text
+~/ccnpauto-workspace/final_assessment/ccnpauto-final-project1-nxos
+```
+
+Before beginning Task 1, follow the main assessment guide to create the
+private `ccnpauto-final-project1-nxos` project, clone it, and use VS Code to
+copy the supplied Project 1 starter files into the clone. Confirm that the
+starter commit has been pushed to GitLab.com.
+
 ## Project Files
 
 ```text
@@ -183,3 +196,19 @@ while grading. For every incomplete task, it identifies the missing points
 and states what is required for full credit. Correct the reported requirement
 and rerun the grader. A full local score does not replace the final VLAN
 deployment and `show vlan brief` verification on the sandbox.
+
+## Submit Project 1
+
+After the grader reports the expected result and the VLANs have been verified,
+review `git status`. Stage only the solution files; do not stage the local
+runtime secret file or `final_lab1`.
+
+```bash
+git add requirements.txt templates/vlans.j2 src/device.py scripts/apply_vlans.py
+git commit -m "Complete NX-OS VLAN automation assessment"
+git push origin main
+git status
+```
+
+Open the GitLab.com project and confirm that the latest commit and completed
+source files are visible.
