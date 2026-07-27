@@ -33,6 +33,13 @@ def main() -> None:
     args = parser.parse_args()
 
     rendered = render_vlan_config()
+    if not rendered.strip():
+        print(
+            "No VLAN configuration was rendered. "
+            "Complete the Jinja2 loop in templates/vlans.j2, then run the command again."
+        )
+        return
+
     print("Rendered NX-OS configuration:")
     print("-" * 60)
     print(rendered)

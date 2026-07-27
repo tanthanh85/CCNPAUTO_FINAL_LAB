@@ -79,6 +79,12 @@ install unrelated packages until the error disappears. This task assesses
 whether you can distinguish a missing Python distribution from an application
 logic failure.
 
+After the missing dependency is installed, the command may report that no VLAN
+configuration was rendered. This is expected at this point because the starter
+`templates/vlans.j2` contains only comments. Continue to Task 3 and implement
+the required loop; do not try to solve the empty output by adding a loop to the
+Python script.
+
 ## Task 2: Diagnose the Missing Runtime Configuration
 
 The starter project deliberately does not include a runtime environment file
