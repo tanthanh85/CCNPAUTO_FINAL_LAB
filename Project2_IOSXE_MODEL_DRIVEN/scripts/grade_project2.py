@@ -37,8 +37,8 @@ def grade_static_route_template() -> int:
             0,
             15,
             "template is missing the required <config> root element",
-            "Keep the supplied NETCONF <config> root and place Cisco-IOS-XE-native "
-            "static-route XML inside the existing Jinja2 loop.",
+            "Keep the supplied NETCONF <config> root and place one OpenConfig "
+            "static-route entry inside the existing Jinja2 loop.",
         )
         return 0
 
@@ -58,22 +58,67 @@ def grade_static_route_template() -> int:
             0,
             15,
             f"rendered XML failed validation: {type(exc).__name__}: {exc}",
-            "The rendered result must be well-formed XML with IOS XE Native "
-            "namespaces and one static-route entry per YAML record.",
+            "The rendered result must be well-formed XML with the OpenConfig "
+            "network-instance namespace and one static entry per YAML record.",
         )
         return 0
 
-    route = data["static_routes"][0]
-    expected_fragments = [route["prefix"], route["mask"], route["next_hop"]]
-    missing = [item for item in expected_fragments if item not in rendered]
+    openconfig_namespace = "http://openconfig.net/yang/network-instance"
+    required_paths = [
+        f".//{{{openconfig_namespace}}}network-instances",
+        f".//{{{openconfig_namespace}}}network-instance",
+        f".//{{{openconfig_namespace}}}protocols",
+        f".//{{{openconfig_namespace}}}protocol",
+        f".//{{{openconfig_namespace}}}static-routes",
+        f".//{{{openconfig_namespace}}}static",
+    ]
+    root = ET.fromstring(rendered)
+    if any(root.find(path) is None for path in required_paths):
+        print_result(
+            "Task 1 NETCONF payload",
+            4,
+            15,
+            "XML is valid but the OpenConfig static-route hierarchy is incomplete",
+            "Use the openconfig-network-instance namespace and include "
+            "network-instances/network-instance/protocols/protocol/"
+            "static-routes/static.",
+        )
+        return 4
+
+    def leaf_values(local_name: str) -> list[str]:
+        return [
+            (element.text or "").strip()
+            for element in root.iter()
+            if element.tag.rsplit("}", 1)[-1] == local_name
+        ]
+
+    prefix_values = leaf_values("prefix")
+    index_values = leaf_values("index")
+    next_hop_values = leaf_values("next-hop")
+    missing: list[str] = []
+    for route in data["static_routes"]:
+        if route["prefix"] not in prefix_values:
+            missing.append(f"prefix={route['prefix']}")
+        if str(route["index"]) not in index_values:
+            missing.append(f"index={route['index']}")
+        if route["next_hop"] not in next_hop_values:
+            missing.append(f"next_hop={route['next_hop']}")
+
+    static_entries = root.findall(f".//{{{openconfig_namespace}}}static")
+    if len(static_entries) < len(data["static_routes"]):
+        missing.append(
+            f"static_entries={len(static_entries)} "
+            f"(expected at least {len(data['static_routes'])})"
+        )
+
     if missing:
         print_result(
             "Task 1 NETCONF payload",
             8,
             15,
             f"XML is valid but is missing route values: {missing}",
-            "Reference route.prefix, route.mask, and route.next_hop inside "
-            "the Cisco IOS XE Native static-route hierarchy.",
+            "Reference route.prefix, route.index, and route.next_hop inside "
+            "the OpenConfig static-route hierarchy.",
         )
         return 8
 
@@ -93,7 +138,7 @@ def grade_static_route_template() -> int:
         15,
         15,
         "static-route template renders valid XML with route values and Jinja2",
-        "Valid XML, Cisco IOS XE Native structure, all required values, and "
+        "Valid XML, OpenConfig network-instance structure, all required values, and "
         "a Jinja2 loop are present.",
     )
     return 15
@@ -240,14 +285,31 @@ def grade_restconf_uris() -> int:
     }
 
     weights = {"CPU_URI": 5, "MEMORY_URI": 5, "INTERFACE_GIG1_URI": 5}
+    required_fragments = {
+        "CPU_URI": (
+            "openconfig-system:system",
+            "cpus",
+            "cpu=",
+            "state/total/instant",
+        ),
+        "MEMORY_URI": ("openconfig-system:system", "memory", "used"),
+        "INTERFACE_GIG1_URI": (
+            "openconfig-interfaces:interfaces",
+            "interface=GigabitEthernet1",
+            "counters",
+            "in-octets",
+        ),
+    }
     points = 0
     detail = []
     for name, value in constants.items():
+        lower_value = value.lower()
         valid = (
             value.startswith("/")
             and "/restconf/data/" not in value
             and "TODO" not in value.upper()
             and "REPLACE" not in value.upper()
+            and all(fragment.lower() in lower_value for fragment in required_fragments[name])
         )
         if valid:
             points += weights[name]
@@ -261,8 +323,9 @@ def grade_restconf_uris() -> int:
         15,
         "; ".join(detail),
         "Use Yangsuite-validated device resource paths only. Each constant "
-        "must begin with '/', omit scheme/host and /restconf/data, and identify "
-        "CPU, memory, or the GigabitEthernet1 list entry respectively.",
+        "must begin with '/', omit scheme/host and /restconf/data, and use "
+        "openconfig-system for CPU and used memory or openconfig-interfaces "
+        "for the GigabitEthernet1 counters entry.",
     )
     return points
 

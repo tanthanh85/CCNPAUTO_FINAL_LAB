@@ -8,7 +8,7 @@ from urllib3.exceptions import InsecureRequestWarning
 from src.settings import load_settings
 
 
-# TODO: Use Cisco Yangsuite to locate the correct RESTCONF data paths.
+# TODO: Use Cisco Yangsuite to locate the correct OpenConfig RESTCONF data paths.
 # Place only the RESTCONF data path beginning with "/".
 CPU_URI = ""
 MEMORY_URI = ""
@@ -80,4 +80,3 @@ def get_monitoring_snapshot() -> dict[str, Any]:
             "raw": interface_data,
         },
     }
-

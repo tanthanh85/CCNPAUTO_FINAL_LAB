@@ -12,9 +12,9 @@ Project 2 is worth **50 points**.
 
 | Task | Requirement | Points |
 |---|---|---:|
-| 1 | Build the NETCONF XML payload template with a Jinja2 loop using Cisco IOS XE Native YANG | 15 |
+| 1 | Build the NETCONF XML payload template with a Jinja2 loop using OpenConfig YANG | 15 |
 | 2 | Complete the Vault credential retrieval function | 20 |
-| 3 | Locate and place RESTCONF monitoring URIs for CPU, memory, and GigabitEthernet1 | 15 |
+| 3 | Locate and place OpenConfig RESTCONF monitoring URIs for CPU, memory, and GigabitEthernet1 | 15 |
 
 ## Project Repository
 
@@ -68,18 +68,18 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-Static-route intent is already defined in [data/static_routes.yaml](data/static_routes.yaml). The starter template already contains the NETCONF `<config>` root element and the Jinja2 loop over `static_routes`. Open local Cisco Yangsuite at `https://localhost:8443` or Cisco DevNet Sandbox Yangsuite at `http://10.10.20.50:8480`. Your task is to use it to construct the correct **Cisco IOS XE Native YANG** XML structure for one static route and place that structure inside the loop in [templates/static_routes.xml.j2](templates/static_routes.xml.j2).
+Static-route intent is already defined in [data/static_routes.yaml](data/static_routes.yaml). The starter template already contains the NETCONF `<config>` root, the OpenConfig network-instance and static-protocol hierarchy, and the Jinja2 loop over `static_routes`. Open local Cisco Yangsuite at `https://localhost:8443` or Cisco DevNet Sandbox Yangsuite at `http://10.10.20.50:8480`. Your task is to use it to construct the correct **OpenConfig YANG** XML structure for one static-route entry and place that structure inside the loop in [templates/static_routes.xml.j2](templates/static_routes.xml.j2).
 
-In Yangsuite, choose the Cisco IOS XE native module, commonly shown as **`Cisco-IOS-XE-native`**. Do not build this task with the generic IETF routing model. This project is intentionally testing the Cisco native model because it closely matches the IOS XE CLI configuration hierarchy.
+In Yangsuite, choose **`openconfig-network-instance`** and its imported OpenConfig dependencies. Do not use `Cisco-IOS-XE-native` or the generic IETF routing model for this task. OpenConfig expresses a route destination in CIDR form, such as `203.0.113.0/24`; consequently, the YAML source uses one `prefix` value instead of separate address and subnet-mask values.
 
 Use this workflow:
 
 1. In **Setup > Device profiles**, create or refresh the IOS XE reservation profile with NETCONF port `830`.
-2. In **Setup > YANG files and repositories**, retrieve the schema list from that device and download `Cisco-IOS-XE-native` with its dependencies.
+2. In **Setup > YANG files and repositories**, retrieve the schema list from that device and download `openconfig-network-instance` with its dependencies.
 3. Add those files to a YANG module set.
-4. In **Protocols > NETCONF**, select the device and module set, load `Cisco-IOS-XE-native`, and first build a `get-config` for the native routing subtree.
-5. Run the read RPC and use the reply to confirm the hierarchy and namespaces accepted by the active IOS XE release.
-6. Change the operation to `edit-config`, select the `running` target and `merge`, enter one temporary set of route values in the tree, and select **Build RPC**.
+4. In **Protocols > NETCONF**, select the device and module set, load `openconfig-network-instance`, and first build a `get-config` for `network-instances/network-instance/protocols/protocol/static-routes`.
+5. Run the read RPC and use the reply to confirm the OpenConfig namespace, the default network-instance name, and the static-protocol key values accepted by the active IOS XE release.
+6. Change the operation to `edit-config`, select the `running` target and `merge`, enter one temporary prefix, next-hop index, and next-hop address in the OpenConfig tree, and select **Build RPC**.
 7. Copy only the generated `<config>...</config>` body into the template design because `ncclient.edit_config()` creates the outer `<rpc>` and `<edit-config>` elements.
 8. Replace the temporary values with the supplied Jinja2 variables inside the existing loop.
 
@@ -87,13 +87,13 @@ The YAML format is:
 
 ```yaml
 static_routes:
-  - prefix: 203.0.113.0
-    mask: 255.255.255.0
+  - prefix: 203.0.113.0/24
+    index: "1"
     next_hop: 10.10.20.254
     description: Example business route
 ```
 
-Use Yangsuite to inspect **`Cisco-IOS-XE-native`** for static routes under the IOS XE native configuration hierarchy. Then complete the XML payload body suitable for NETCONF `<edit-config>`. Do not hard-code only one route. The starter file already provides this Jinja2 loop:
+Use Yangsuite to inspect **`openconfig-network-instance`** for static routes under the default network instance and static protocol. Then complete the XML payload body suitable for NETCONF `<edit-config>`. Do not hard-code only one route. The starter file already provides this Jinja2 loop:
 
 ```jinja2
 {% for route in static_routes %}
@@ -101,9 +101,9 @@ Use Yangsuite to inspect **`Cisco-IOS-XE-native`** for static routes under the I
 {% endfor %}
 ```
 
-The XML you add inside that loop must use `route.prefix`, `route.mask`, and `route.next_hop`.
+The XML you add inside that loop must use `route.prefix`, `route.index`, and `route.next_hop`. OpenConfig list keys normally appear both as the list key leaf and in the associated `config` container, so compare your generated payload carefully with the Yangsuite output.
 
-When the YAML file contains two or more routes, the rendered XML should contain two or more static-route entries. This is the main skill being tested in Task 1: discover the Cisco native YANG structure once, then use Jinja2 to repeat that structure for each desired static route.
+When the YAML file contains two or more routes, the rendered XML should contain two or more OpenConfig `static` entries. This is the main skill being tested in Task 1: discover the OpenConfig hierarchy once, then use Jinja2 to repeat that structure for each desired static route.
 
 After completing the template, first create `.env` if it does not exist. Open `.env.example` in VS Code, create `.env` in the project root, and copy and paste the example content into it. Enter the active reservation values, then render the template:
 
@@ -165,50 +165,54 @@ The function should:
 
 After completing the function, add one more static route to [data/static_routes.yaml](data/static_routes.yaml), rerun the script, and verify the new route.
 
-## Task 3: Complete RESTCONF Monitoring URIs
+## Task 3: Complete OpenConfig RESTCONF Monitoring URIs
 
-The project includes a small Flask management portal that refreshes every 5 seconds. Most of the code is complete, but the RESTCONF URIs are missing.
+The project includes a small Flask management portal that refreshes every 5 seconds. Most of the code is complete, but the OpenConfig RESTCONF URIs are missing.
 
-Use local Cisco Yangsuite or Cisco DevNet Sandbox Yangsuite at `http://10.10.20.50:8480` to locate RESTCONF operational paths for:
+Use local Cisco Yangsuite or Cisco DevNet Sandbox Yangsuite at `http://10.10.20.50:8480` to locate OpenConfig operational paths for:
 
-- CPU utilization,
-- memory utilization,
-- and GigabitEthernet1 interface counters or utilization.
+- aggregate CPU utilization under `openconfig-system`,
+- used system memory under `openconfig-system`,
+- and an input counter for `GigabitEthernet1` under `openconfig-interfaces`.
+
+For CPU, inspect `system/cpus/cpu/state/total` and select a numeric utilization leaf such as `instant` for the aggregate CPU entry supported by the router. For memory, inspect `system/memory/state` and select `used`. For the interface, inspect `interfaces/interface/state/counters` and select `in-octets`. The precise RESTCONF list-key values must come from the active device rather than from an assumed platform-specific name.
 
 For each metric:
 
 1. Use the device profile and the YANG set downloaded from the active IOS XE reservation.
-2. Select **Protocols > RESTCONF**, load the operational module, and use **Search module** to locate the required container or leaf.
-3. Select that node and choose **Generate APIs**.
-4. Use the generated API information to identify the `GET` resource path.
+2. Confirm that the module set includes `openconfig-system` and `openconfig-interfaces` with their dependencies. Do not use Cisco IOS XE Native or Cisco-specific operational modules for this task.
+3. Select **Protocols > RESTCONF**, load the relevant OpenConfig module, and use **Search module** to locate the required container or leaf.
+4. Select that node and choose **Generate APIs**.
+5. Use the generated API information to identify the `GET` resource path.
    Copy the device resource path that follows `/restconf/data/`; do not copy a
    Yangsuite proxy hostname or proxy prefix. Validate the request directly
    against IOS XE with Postman.
-5. Open Postman and create a new **HTTP Request**. Set the method to `GET` and
+6. Open Postman and create a new **HTTP Request**. Set the method to `GET` and
    enter the direct IOS XE URL:
 
    ```text
    https://<IOSXE_HOST>:<IOSXE_RESTCONF_PORT>/restconf/data/<generated-resource-path>
    ```
 
-6. On the **Authorization** tab, select **Basic Auth** and enter the active IOS
+7. On the **Authorization** tab, select **Basic Auth** and enter the active IOS
    XE reservation username and password.
-7. On the **Headers** tab, add:
+8. On the **Headers** tab, add:
 
    ```text
    Accept: application/yang-data+json
    ```
 
-8. The sandbox normally uses a self-signed HTTPS certificate. For this
+9. The sandbox normally uses a self-signed HTTPS certificate. For this
    controlled assessment only, open **Postman Settings > General** and disable
    **SSL certificate verification** if certificate validation prevents the
    request.
-9. Select **Send** and confirm that IOS XE returns `200 OK`. Inspect the JSON
+10. Select **Send** and confirm that IOS XE returns `200 OK`. Inspect the JSON
    response and verify that it includes the field consumed by the portal.
-10. When selecting one interface list entry, allow Yangsuite to generate the
-    encoded list-key syntax for `GigabitEthernet1`; do not paste an XPath
+11. When selecting a CPU or interface list entry, allow Yangsuite to generate
+    the RESTCONF list-key syntax. Use the aggregate CPU entry exposed by the
+    device and the `GigabitEthernet1` interface entry; do not paste an XPath
     predicate into a RESTCONF URI.
-11. Repeat the Postman request for CPU, memory, and interface data before
+12. Repeat the Postman request for CPU, memory, and interface data before
     placing any resource path into Python.
 
 Open [src/restconf_monitor.py](src/restconf_monitor.py) and complete:
@@ -224,7 +228,9 @@ Place the RESTCONF data paths only. Do not include the scheme, hostname, or `/re
 Use this format:
 
 ```python
-CPU_URI = "/Cisco-IOS-XE-process-cpu-oper:..."
+CPU_URI = "/openconfig-system:system/..."
+MEMORY_URI = "/openconfig-system:system/..."
+INTERFACE_GIG1_URI = "/openconfig-interfaces:interfaces/..."
 ```
 
 Run the portal:
