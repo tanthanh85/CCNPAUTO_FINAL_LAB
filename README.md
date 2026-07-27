@@ -213,9 +213,9 @@ Project 2 represents a newer programmable network platform. The IOS XE router su
 
 You need to complete three tasks:
 
-1. Use local Cisco Yangsuite or Cisco DevNet Sandbox Yangsuite at `http://10.10.20.50:8480` to construct the XML structure for static routes with the OpenConfig `openconfig-network-instance` model, then convert it into a Jinja2 template with a loop over the YAML route list.
+1. Use local Cisco Yangsuite or Cisco DevNet Sandbox Yangsuite at `http://10.10.20.50:8480` to construct the XML structure for static routes with `Cisco-IOS-XE-native`, then convert it into a Jinja2 template with a loop over the YAML route list.
 2. Complete the Vault credential retrieval function.
-3. Use local or Cisco DevNet Sandbox Yangsuite to locate OpenConfig RESTCONF URIs for CPU, memory, and GigabitEthernet1 monitoring, then place those URIs into the code.
+3. Use local or Cisco DevNet Sandbox Yangsuite to locate Cisco IOS XE operational RESTCONF URIs for CPU, memory, and GigabitEthernet1 monitoring, then place those URIs into the code.
 
 Run the self-grader from the project folder:
 

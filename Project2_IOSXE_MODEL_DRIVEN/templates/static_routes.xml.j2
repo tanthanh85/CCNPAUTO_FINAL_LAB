@@ -1,19 +1,12 @@
 <config xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
-  <network-instances xmlns="http://openconfig.net/yang/network-instance">
-    <network-instance>
-      <name>default</name>
-      <protocols>
-        <protocol>
-          <identifier xmlns:oc-pol-types="http://openconfig.net/yang/policy-types">oc-pol-types:STATIC</identifier>
-          <name>DEFAULT</name>
-          <static-routes>
+  <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
+    <ip>
+      <route>
         {% for route in static_routes %}
-            {# Replace this comment with one OpenConfig <static> route entry. #}
-            {# Required values are route.prefix, route.index, and route.next_hop. #}
+          {# Replace this comment with one Cisco-IOS-XE-native static-route entry. #}
+          {# Required values are route.prefix, route.mask, and route.next_hop. #}
         {% endfor %}
-          </static-routes>
-        </protocol>
-      </protocols>
-    </network-instance>
-  </network-instances>
+      </route>
+    </ip>
+  </native>
 </config>
