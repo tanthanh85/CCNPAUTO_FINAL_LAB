@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template
@@ -8,7 +9,8 @@ from flask import Flask, jsonify, render_template
 from src.restconf_monitor import RestconfMonitorError, get_monitoring_snapshot
 
 
-load_dotenv()
+PROJECT_ROOT = Path(__file__).resolve().parent
+load_dotenv(dotenv_path=PROJECT_ROOT / ".env", override=False)
 
 app = Flask(__name__, template_folder="templates_flask")
 
@@ -31,4 +33,3 @@ if __name__ == "__main__":
         host=os.getenv("FLASK_HOST", "127.0.0.1"),
         port=int(os.getenv("FLASK_PORT", "5060")),
     )
-

@@ -106,6 +106,11 @@ commit the local secret file to Git. This task assesses whether you can trace
 configuration dependencies in an unfamiliar Python application rather than
 copy variable names from an example.
 
+The application uses `python-dotenv` to load `.env` directly from the project
+root. Do not run `source .env` and do not export the connection variables
+manually. After saving `.env`, run the Python command normally from the active
+`final_lab1` virtual environment.
+
 ## Task 3: Build the VLAN Jinja2 Template
 
 The VLAN intent is already stored in [data/vlans.yaml](data/vlans.yaml). Your job is to complete [templates/vlans.j2](templates/vlans.j2).

@@ -107,6 +107,9 @@ When the YAML file contains two or more routes, the rendered XML should contain 
 
 After completing the template, first create `.env` if it does not exist. Open `.env.example` in VS Code, create `.env` in the project root, and copy and paste the example content into it. Enter the active reservation values, then render the template:
 
+The project loads this file automatically with `python-dotenv`. Do not run
+`source .env` and do not export the IOS XE or Vault variables manually.
+
 ```bash
 source final_lab2/bin/activate
 nano .env
@@ -138,9 +141,8 @@ vault server -dev -dev-root-token-id=root
 In another terminal:
 
 ```bash
-export VAULT_ADDR=http://127.0.0.1:8200
-export VAULT_TOKEN=root
-vault kv put secret/ccnpauto/final/iosxe \
+VAULT_ADDR=http://127.0.0.1:8200 VAULT_TOKEN=root \
+  vault kv put secret/ccnpauto/final/iosxe \
   username='<iosxe-username>' \
   password='<iosxe-password>'
 ```
@@ -153,6 +155,10 @@ VAULT_ADDR=http://127.0.0.1:8200
 VAULT_TOKEN=root
 VAULT_SECRET_PATH=ccnpauto/final/iosxe
 ```
+
+The inline variables above apply only to the single Vault CLI command. The
+Python application reads the same Vault settings automatically from the
+project-root `.env` file.
 
 Open [src/vault_credentials.py](src/vault_credentials.py) and complete `get_iosxe_credentials_from_vault()`.
 

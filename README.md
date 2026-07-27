@@ -42,6 +42,12 @@ vault status
 
 If `vault status` fails, start the development server in a dedicated terminal and recreate the assessment secret. For local Yangsuite, start it from `~/lab-services/yangsuite/docker`; otherwise open Cisco DevNet Sandbox Yangsuite at `http://10.10.20.50:8480`.
 
+Both projects use `python-dotenv` and load `.env` explicitly from their own
+project root. Learners edit the file but do not run `source .env` or maintain
+connection variables with shell `export` commands. Activating `final_lab1` or
+`final_lab2` is still required to select the correct Python interpreter and
+installed packages.
+
 ## Create the Two GitLab Projects
 
 Each assessment project must have its own private GitLab.com repository. Do
