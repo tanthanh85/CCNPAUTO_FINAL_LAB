@@ -286,19 +286,37 @@ def grade_exception_handling() -> int:
         )
         return 0
 
+    imported_names: dict[str, str] = {}
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.ImportFrom)
+            and node.module in {"netmiko", "netmiko.exceptions"}
+        ):
+            for imported in node.names:
+                imported_names[imported.asname or imported.name] = imported.name
+
     handled: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.ExceptHandler):
-            handled.update(_exception_names(node.type))
+            for name in _exception_names(node.type):
+                handled.add(imported_names.get(name, name))
 
     checks = [
         (
-            "NetmikoAuthenticationException",
+            "authentication exception",
+            {
+                "NetmikoAuthenticationException",
+                "NetMikoAuthenticationException",
+            },
             NetmikoAuthenticationException("simulated authentication failure"),
             ("authentication",),
         ),
         (
-            "NetmikoTimeoutException",
+            "timeout exception",
+            {
+                "NetmikoTimeoutException",
+                "NetMikoTimeoutException",
+            },
             NetmikoTimeoutException("simulated connection timeout"),
             ("timeout", "timed out"),
         ),
@@ -306,15 +324,20 @@ def grade_exception_handling() -> int:
 
     score = 0
     details = []
-    for class_name, exception, words in checks:
-        if class_name not in handled:
-            details.append(f"{class_name} handler missing")
+    for label, accepted_names, exception, words in checks:
+        matched_names = handled.intersection(accepted_names)
+        if not matched_names:
+            details.append(
+                f"{label} handler missing; accepted names: "
+                f"{', '.join(sorted(accepted_names))}"
+            )
             continue
 
         passed, detail = _simulate_connection_failure(exception, words)
         if passed:
             score += 5
-        details.append(f"{class_name}: {detail}")
+        detected_name = sorted(matched_names)[0]
+        details.append(f"{label} ({detected_name}): {detail}")
 
     print_result(
         "Task 5 Netmiko exceptions",
