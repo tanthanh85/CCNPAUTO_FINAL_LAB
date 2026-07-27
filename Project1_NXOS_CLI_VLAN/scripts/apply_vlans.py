@@ -1,19 +1,24 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 from netmiko import ConnectHandler
+
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
 from src.device import device
 from src.vlan_source import load_vlan_intent
 
 
 def render_vlan_config() -> str:
-    vlans = load_vlan_intent()
+    vlans = load_vlan_intent(str(ROOT / "data" / "vlans.yaml"))
     env = Environment(
-        loader=FileSystemLoader("templates"),
+        loader=FileSystemLoader(ROOT / "templates"),
         undefined=StrictUndefined,
         trim_blocks=True,
         lstrip_blocks=True,

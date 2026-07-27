@@ -1,18 +1,24 @@
 from __future__ import annotations
 
 import argparse
+import sys
+from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 from ncclient import manager
+
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
 from src.route_source import load_static_routes
 from src.settings import load_settings
 
 
 def render_static_route_payload() -> str:
-    routes = load_static_routes()
+    routes = load_static_routes(str(ROOT / "data" / "static_routes.yaml"))
     env = Environment(
-        loader=FileSystemLoader("templates"),
+        loader=FileSystemLoader(ROOT / "templates"),
         undefined=StrictUndefined,
         trim_blocks=True,
         lstrip_blocks=True,
@@ -52,4 +58,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
