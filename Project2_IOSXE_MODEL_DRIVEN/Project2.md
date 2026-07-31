@@ -196,6 +196,13 @@ The function should:
 - read the KV version 2 secret from `VAULT_SECRET_PATH`,
 - and return a dictionary with `username` and `password`.
 
+Do not use `print(data)` or print the returned username, password, Vault token,
+or complete Vault response. The Flask dashboard refreshes every five seconds,
+so a debugging print inside this function would repeatedly expose the router
+credentials in the terminal. While troubleshooting, inspect only
+non-sensitive status information, such as whether the Vault client is
+authenticated.
+
 After adding the working code, comment out the original placeholder at the end
 of the function:
 

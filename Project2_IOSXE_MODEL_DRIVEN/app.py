@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 
@@ -13,6 +14,11 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 load_dotenv(dotenv_path=PROJECT_ROOT / ".env", override=False)
 
 app = Flask(__name__, template_folder="templates_flask")
+
+# Avoid one routine access-log line every five seconds when the dashboard
+# polls /api/metrics. Application errors remain visible.
+logging.getLogger("werkzeug").setLevel(logging.ERROR)
+app.logger.setLevel(logging.ERROR)
 
 
 @app.get("/")

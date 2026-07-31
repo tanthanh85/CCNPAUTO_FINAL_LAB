@@ -254,6 +254,16 @@ def grade_vault_function() -> int:
     else:
         details.append("username/password dictionary return not detected")
 
+    has_print_call = any(
+        isinstance(call.func, ast.Name) and call.func.id == "print"
+        for call in calls
+    )
+    if has_print_call:
+        score = max(0, score - 5)
+        details.append("unsafe print() call in Vault function (-5)")
+    else:
+        details.append("Vault response is not printed")
+
     print_result(
         "Task 2 Vault credentials",
         score,
@@ -261,7 +271,8 @@ def grade_vault_function() -> int:
         "; ".join(details),
         "Comment out the final raise NotImplementedError placeholder, create "
         "an authenticated hvac.Client, read VAULT_SECRET_PATH from KV v2, "
-        "extract data.data, and return username and password in a dictionary.",
+        "extract data.data, and return username and password in a dictionary. "
+        "Do not print the Vault response or any credential value.",
     )
     return score
 
