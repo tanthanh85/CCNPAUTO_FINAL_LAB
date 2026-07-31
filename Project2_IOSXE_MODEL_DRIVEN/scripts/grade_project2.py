@@ -4,7 +4,6 @@ import ast
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Union
 
 import yaml
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
@@ -26,28 +25,6 @@ def print_result(
     RESULTS.append((name, points, maximum, expected))
     if points < maximum:
         print(f"  Expected for full points: {expected}")
-
-
-def has_reachable_not_implemented(
-    function: Union[ast.FunctionDef, ast.AsyncFunctionDef],
-) -> bool:
-    """Detect a NotImplementedError that can run before a direct return."""
-
-    def raises_not_implemented(node: ast.AST) -> bool:
-        return (
-            isinstance(node, ast.Raise)
-            and isinstance(node.exc, ast.Call)
-            and isinstance(node.exc.func, ast.Name)
-            and node.exc.func.id == "NotImplementedError"
-        )
-
-    for statement in function.body:
-        # A direct return makes every following top-level statement unreachable.
-        if isinstance(statement, ast.Return):
-            return False
-        if any(raises_not_implemented(node) for node in ast.walk(statement)):
-            return True
-    return False
 
 
 def grade_static_route_template() -> int:
@@ -214,11 +191,21 @@ def grade_vault_function() -> int:
     score = 0
     details = []
 
-    if not has_reachable_not_implemented(function):
+    placeholder = any(
+        isinstance(node, ast.Pass)
+        or (
+            isinstance(node, ast.Raise)
+            and isinstance(node.exc, ast.Call)
+            and isinstance(node.exc.func, ast.Name)
+            and node.exc.func.id == "NotImplementedError"
+        )
+        for node in ast.walk(function)
+    )
+    if not placeholder:
         score += 5
-        details.append("no reachable NotImplementedError remains")
+        details.append("placeholder removed")
     else:
-        details.append("reachable NotImplementedError remains")
+        details.append("placeholder remains")
 
     calls = [
         node
@@ -271,9 +258,9 @@ def grade_vault_function() -> int:
         score,
         20,
         "; ".join(details),
-        "Ensure the working code returns before any old NotImplementedError, "
-        "create an authenticated hvac.Client, read VAULT_SECRET_PATH from KV "
-        "v2, extract data.data, and return username and password in a dictionary.",
+        "Comment out the final raise NotImplementedError placeholder, create "
+        "an authenticated hvac.Client, read VAULT_SECRET_PATH from KV v2, "
+        "extract data.data, and return username and password in a dictionary.",
     )
     return score
 

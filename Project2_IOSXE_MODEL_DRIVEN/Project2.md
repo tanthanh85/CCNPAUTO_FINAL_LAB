@@ -196,6 +196,17 @@ The function should:
 - read the KV version 2 secret from `VAULT_SECRET_PATH`,
 - and return a dictionary with `username` and `password`.
 
+After adding the working code, comment out the original placeholder at the end
+of the function:
+
+```python
+# raise NotImplementedError("Complete Vault credential retrieval for the final lab")
+```
+
+Do not leave the `raise NotImplementedError(...)` statement active, even when
+it appears after your `return` statement. The grader checks that the starter
+placeholder has been deliberately disabled.
+
 After completing the function, add one more static route to [data/static_routes.yaml](data/static_routes.yaml), rerun the script, and verify the new route.
 
 ## Task 3: Complete Cisco IOS XE RESTCONF Monitoring URIs
