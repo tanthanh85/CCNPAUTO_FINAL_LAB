@@ -3,8 +3,13 @@
     <ip>
       <route>
         {% for route in static_routes %}
-          {# Replace this comment with one Cisco-IOS-XE-native static-route entry. #}
-          {# Required values are route.prefix, route.mask, and route.next_hop. #}
+          <ip-route-interface-forwarding-list>
+            <prefix>{{ route.prefix }}</prefix>
+            <mask>{{ route.mask }}</mask>
+            <fwd-list>
+              <fwd>{{ route.next_hop }}</fwd>
+            </fwd-list>
+          </ip-route-interface-forwarding-list>
         {% endfor %}
       </route>
     </ip>
