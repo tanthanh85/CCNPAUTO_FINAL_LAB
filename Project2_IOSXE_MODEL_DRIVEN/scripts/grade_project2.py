@@ -36,8 +36,21 @@ def grade_static_route_template() -> int:
             0,
             15,
             "template is missing the required <config> root element",
-            "Keep the supplied NETCONF <config> root and place one "
-            "Cisco-IOS-XE-native static-route entry inside the existing loop.",
+            "Keep the supplied NETCONF <config> root and Cisco-IOS-XE-native "
+            "static-route structure, then add the required Jinja2 loop.",
+        )
+        return 0
+
+    required_loop = "{% for route in static_routes %}"
+    if required_loop not in template_text or "{% endfor %}" not in template_text:
+        print_result(
+            "Task 1 NETCONF payload",
+            0,
+            15,
+            "the required Jinja2 for loop is incomplete",
+            "Add '{% for route in static_routes %}' immediately before the "
+            "supplied route entry and '{% endfor %}' immediately after it. "
+            "Keep spaces inside the Jinja2 delimiters.",
         )
         return 0
 

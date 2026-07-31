@@ -12,7 +12,7 @@ Project 2 is worth **50 points**.
 
 | Task | Requirement | Points |
 |---|---|---:|
-| 1 | Build the NETCONF XML payload template with a Jinja2 loop using Cisco IOS XE Native YANG | 15 |
+| 1 | Complete the Jinja2 loop in the Cisco IOS XE Native NETCONF template | 15 |
 | 2 | Complete the Vault credential retrieval function | 20 |
 | 3 | Locate and place Cisco IOS XE operational RESTCONF URIs for CPU, memory, and GigabitEthernet1 | 15 |
 
@@ -57,7 +57,7 @@ Project2_IOSXE_MODEL_DRIVEN/
     └── portal.html
 ```
 
-## Task 1: Build the NETCONF XML Payload Template
+## Task 1: Complete the Jinja2 Loop
 
 Before editing project files, create a Python virtual environment and install the required libraries:
 
@@ -72,20 +72,19 @@ The dependency list includes `xmltodict`, which the project uses only to
 check whether the NETCONF XML reply contains `<ok/>`. The installable package
 and Python module are both named `xmltodict`.
 
-Static-route intent is already defined in [data/static_routes.yaml](data/static_routes.yaml). The starter template already contains the NETCONF `<config>` root, the Cisco IOS XE Native `native/ip/route` hierarchy, and the Jinja2 loop over `static_routes`. Open local Cisco Yangsuite at `https://localhost:8443` or Cisco DevNet Sandbox Yangsuite at `http://10.10.20.50:8480`. Your task is to use it to construct the correct **Cisco IOS XE Native YANG** XML structure for one static-route entry and place that structure inside the loop in [templates/static_routes.xml.j2](templates/static_routes.xml.j2).
+Static-route intent is already defined in [data/static_routes.yaml](data/static_routes.yaml). The starter template contains the NETCONF `<config>` root and the complete Cisco IOS XE Native `native/ip/route` XML structure. However, the Jinja2 loop has been removed. Your task is to add the opening and closing loop statements in [templates/static_routes.xml.j2](templates/static_routes.xml.j2) so that every route in the YAML list produces one XML route entry.
 
 In Yangsuite, choose **`Cisco-IOS-XE-native`** with its dependencies. Do not use OpenConfig or the generic IETF routing model for this task. The native static-route hierarchy accepts the destination address and subnet mask as separate values, matching the supplied YAML source.
 
-Use this workflow:
+Use Yangsuite to understand and verify the supplied XML structure:
 
 1. In **Setup > Device profiles**, create or refresh the IOS XE reservation profile with NETCONF port `830`.
 2. In **Setup > YANG files and repositories**, retrieve the schema list from that device and download `Cisco-IOS-XE-native` with its dependencies.
 3. Add those files to a YANG module set.
-4. In **Protocols > NETCONF**, select the device and module set, load `Cisco-IOS-XE-native`, and first build a `get-config` for the `native/ip/route` subtree.
-5. Run the read RPC and use the reply to confirm the native hierarchy and namespace accepted by the active IOS XE release.
-6. Change the operation to `edit-config`, select the `running` target and `merge`, enter one temporary prefix, subnet mask, and next-hop address in the native route tree, and select **Build RPC**.
-7. Copy only the generated `<config>...</config>` body into the template design because `ncclient.edit_config()` creates the outer `<rpc>` and `<edit-config>` elements.
-8. Replace the temporary values with the supplied Jinja2 variables inside the existing loop.
+4. In **Protocols > NETCONF**, select the device and module set, load `Cisco-IOS-XE-native`, and locate the `native/ip/route` subtree.
+5. Build one sample `edit-config` request and compare its `<config>` body with the supplied template.
+6. Confirm that the supplied `prefix`, `mask`, `fwd-list`, and `fwd` elements follow the hierarchy exposed by the reserved router.
+7. Leave the supplied XML elements and variables in place. Only add the missing opening and closing Jinja2 loop statements.
 
 The YAML format is:
 
@@ -97,17 +96,26 @@ static_routes:
     description: Example business route
 ```
 
-Use Yangsuite to inspect **`Cisco-IOS-XE-native`** for static routes under `native/ip/route`. Then complete the XML payload body suitable for NETCONF `<edit-config>`. Do not hard-code only one route. The starter file already provides this Jinja2 loop:
+### Jinja2 Syntax Used in This Task
+
+Jinja2 uses two different delimiter styles in this template:
+
+- `{{ variable }}` prints a value into the rendered XML. The supplied XML already uses `{{ route.prefix }}`, `{{ route.mask }}`, and `{{ route.next_hop }}`.
+- `{% statement %}` controls template logic. A `for` statement repeats a block, while `endfor` marks the end of that repeated block.
+
+Keep one space after the opening delimiter and one space before the closing delimiter. For example, write `{{ route.prefix }}` rather than `{{route.prefix}}`, and write `{% for route in static_routes %}` rather than `{%for route in static_routes%}`. Jinja2 may accept compressed forms, but consistent spacing makes templates much easier to read and troubleshoot.
+
+Open [templates/static_routes.xml.j2](templates/static_routes.xml.j2). Add the opening loop immediately before `<ip-route-interface-forwarding-list>` and add the closing statement immediately after that element:
 
 ```jinja2
 {% for route in static_routes %}
-  <!-- Add the Cisco native static-route XML for one route here -->
+  <!-- The supplied Cisco Native static-route XML is repeated here. -->
 {% endfor %}
 ```
 
-The XML you add inside that loop must use `route.prefix`, `route.mask`, and `route.next_hop`. Compare the route list and forwarding-list elements carefully with the payload generated by Yangsuite.
+Do not add another `<config>`, `<native>`, `<ip>`, or `<route>` element inside the loop. Those parent elements already exist and must appear only once in the payload.
 
-When the YAML file contains two or more routes, the rendered XML should contain two or more native static-route entries. This is the main skill being tested in Task 1: discover the Cisco native hierarchy once, then use Jinja2 to repeat that structure for each desired static route.
+When the YAML file contains two or more routes, the rendered XML should contain two or more `ip-route-interface-forwarding-list` entries. This confirms that the loop operates on the entire `static_routes` list rather than rendering only one hard-coded route.
 
 After completing the template, first create `.env` if it does not exist. Open `.env.example` in VS Code, create `.env` in the project root, and copy and paste the example content into it. Enter the active reservation values, then render the template:
 
