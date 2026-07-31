@@ -311,7 +311,6 @@ def grade_restconf_uris() -> int:
             "Cisco-IOS-XE-interfaces-oper:interfaces",
             "interface=GigabitEthernet1",
             "statistics",
-            "in-octets",
         ),
     }
     points = 0
@@ -324,6 +323,10 @@ def grade_restconf_uris() -> int:
             and "TODO" not in value.upper()
             and "REPLACE" not in value.upper()
             and all(fragment.lower() in lower_value for fragment in required_fragments[name])
+            and (
+                name != "INTERFACE_GIG1_URI"
+                or value.rstrip("/").lower().endswith("/statistics")
+            )
         )
         if valid:
             points += weights[name]
@@ -339,7 +342,8 @@ def grade_restconf_uris() -> int:
         "Use Yangsuite-validated device resource paths only. Each constant "
         "must begin with '/', omit scheme/host and /restconf/data, and use the "
         "Cisco IOS XE CPU, memory, or interfaces operational model expected "
-        "for that metric.",
+        "for that metric. The interface URI must end at the statistics "
+        "container so one response includes both rx-pps and tx-pps.",
     )
     return points
 

@@ -3,57 +3,335 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>IOS XE Management Portal</title>
+  <title>IOS XE Operations Dashboard</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='portal.css') }}">
 </head>
 <body>
   <main class="shell">
-    <section class="hero">
-      <p class="eyebrow">Apex Global Services · IOS XE Operations</p>
-      <h1>Router Management Portal</h1>
-      <p>Live Cisco IOS XE RESTCONF monitoring for CPU, memory, and GigabitEthernet1.</p>
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Apex Global Services · Network Operations</p>
+        <h1>IOS XE Operations Dashboard</h1>
+        <p class="subtitle">
+          Live RESTCONF telemetry from GigabitEthernet1, refreshed every five seconds.
+        </p>
+      </div>
+      <div class="connection">
+        <span id="status-dot" class="status-dot pending"></span>
+        <div>
+          <strong id="status-text">Connecting</strong>
+          <span id="last-update">Waiting for the first sample</span>
+        </div>
+      </div>
+    </header>
+
+    <section class="summary-grid" aria-label="Current metric values">
+      <article class="summary-card cpu">
+        <span class="summary-label">CPU utilization</span>
+        <strong id="cpu-value">--</strong>
+        <small>Five-second average</small>
+      </article>
+      <article class="summary-card memory">
+        <span class="summary-label">Used memory</span>
+        <strong id="memory-value">--</strong>
+        <small>Processor memory</small>
+      </article>
+      <article class="summary-card input">
+        <span class="summary-label">Input packet rate</span>
+        <strong id="input-value">--</strong>
+        <small>GigabitEthernet1 · packets/s</small>
+      </article>
+      <article class="summary-card output">
+        <span class="summary-label">Output packet rate</span>
+        <strong id="output-value">--</strong>
+        <small>GigabitEthernet1 · packets/s</small>
+      </article>
     </section>
 
-    <section class="cards">
-      <article class="card">
-        <span>CPU</span>
-        <strong id="cpu">Loading...</strong>
+    <section class="chart-grid" aria-label="Metric history">
+      <article class="chart-card">
+        <div class="chart-heading">
+          <div>
+            <span class="metric-dot cpu-dot"></span>
+            <h2>CPU utilization</h2>
+          </div>
+          <span>Percent</span>
+        </div>
+        <canvas id="cpu-chart" aria-label="CPU utilization history"></canvas>
       </article>
-      <article class="card">
-        <span>Memory</span>
-        <strong id="memory">Loading...</strong>
+
+      <article class="chart-card">
+        <div class="chart-heading">
+          <div>
+            <span class="metric-dot memory-dot"></span>
+            <h2>Used memory</h2>
+          </div>
+          <span>Bytes</span>
+        </div>
+        <canvas id="memory-chart" aria-label="Used memory history"></canvas>
       </article>
-      <article class="card">
-        <span>GigabitEthernet1</span>
-        <strong id="interface">Loading...</strong>
+
+      <article class="chart-card">
+        <div class="chart-heading">
+          <div>
+            <span class="metric-dot input-dot"></span>
+            <h2>Input packet rate</h2>
+          </div>
+          <span>Packets/s</span>
+        </div>
+        <canvas id="input-chart" aria-label="Input packet rate history"></canvas>
+      </article>
+
+      <article class="chart-card">
+        <div class="chart-heading">
+          <div>
+            <span class="metric-dot output-dot"></span>
+            <h2>Output packet rate</h2>
+          </div>
+          <span>Packets/s</span>
+        </div>
+        <canvas id="output-chart" aria-label="Output packet rate history"></canvas>
       </article>
     </section>
 
-    <section class="panel">
-      <h2>Raw RESTCONF Snapshot</h2>
-      <pre id="raw">Waiting for data...</pre>
-    </section>
+    <footer>
+      <span>Rolling window: 60 samples</span>
+      <span id="sample-count">0 samples collected</span>
+    </footer>
   </main>
 
   <script>
-    async function refreshMetrics() {
-      const raw = document.querySelector("#raw");
-      try {
-        const response = await fetch("/api/metrics");
-        const payload = await response.json();
-        raw.textContent = JSON.stringify(payload, null, 2);
-        if (payload.ok) {
-          document.querySelector("#cpu").textContent = payload.data.cpu.value ?? "No numeric value";
-          document.querySelector("#memory").textContent = payload.data.memory.value ?? "No numeric value";
-          document.querySelector("#interface").textContent = payload.data.gigabit_ethernet_1.value ?? "No numeric value";
+    const MAX_SAMPLES = 60;
+
+    const colors = {
+      cpu: "#38bdf8",
+      memory: "#a78bfa",
+      input: "#34d399",
+      output: "#fb923c",
+    };
+
+    function formatNumber(value, digits = 1) {
+      if (value === null || value === undefined || Number.isNaN(Number(value))) {
+        return "--";
+      }
+      return Number(value).toLocaleString(undefined, {
+        maximumFractionDigits: digits,
+      });
+    }
+
+    function formatBytes(value) {
+      if (value === null || value === undefined || Number.isNaN(Number(value))) {
+        return "--";
+      }
+      const units = ["B", "KiB", "MiB", "GiB", "TiB"];
+      let amount = Number(value);
+      let unit = 0;
+      while (amount >= 1024 && unit < units.length - 1) {
+        amount /= 1024;
+        unit += 1;
+      }
+      return `${amount.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
+    }
+
+    class LineChart {
+      constructor(canvas, color, valueFormatter, fixedMaximum = null) {
+        this.canvas = canvas;
+        this.context = canvas.getContext("2d");
+        this.color = color;
+        this.valueFormatter = valueFormatter;
+        this.fixedMaximum = fixedMaximum;
+        this.samples = [];
+        this.labels = [];
+        new ResizeObserver(() => this.draw()).observe(canvas);
+      }
+
+      add(value, timestamp) {
+        const numeric = value === null || value === undefined ? null : Number(value);
+        this.samples.push(Number.isFinite(numeric) ? numeric : null);
+        this.labels.push(timestamp);
+        if (this.samples.length > MAX_SAMPLES) {
+          this.samples.shift();
+          this.labels.shift();
         }
-      } catch (error) {
-        raw.textContent = `Failed to refresh metrics: ${error}`;
+        this.draw();
+      }
+
+      draw() {
+        const rect = this.canvas.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+
+        const ratio = window.devicePixelRatio || 1;
+        this.canvas.width = Math.round(rect.width * ratio);
+        this.canvas.height = Math.round(rect.height * ratio);
+        const ctx = this.context;
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+
+        const width = rect.width;
+        const height = rect.height;
+        const padding = { top: 18, right: 18, bottom: 28, left: 56 };
+        const plotWidth = width - padding.left - padding.right;
+        const plotHeight = height - padding.top - padding.bottom;
+        ctx.clearRect(0, 0, width, height);
+
+        const valid = this.samples.filter((value) => value !== null);
+        const observedMaximum = valid.length ? Math.max(...valid) : 0;
+        const maximum = this.fixedMaximum || Math.max(observedMaximum * 1.15, 1);
+
+        ctx.font = "11px Inter, system-ui, sans-serif";
+        ctx.fillStyle = "#8294ad";
+        ctx.strokeStyle = "rgba(148, 163, 184, 0.14)";
+        ctx.lineWidth = 1;
+
+        for (let row = 0; row <= 4; row += 1) {
+          const y = padding.top + (plotHeight * row) / 4;
+          ctx.beginPath();
+          ctx.moveTo(padding.left, y);
+          ctx.lineTo(width - padding.right, y);
+          ctx.stroke();
+          const label = this.valueFormatter(maximum * (1 - row / 4));
+          ctx.fillText(label, 8, y + 4);
+        }
+
+        if (!this.samples.length) {
+          ctx.fillStyle = "#8294ad";
+          ctx.textAlign = "center";
+          ctx.fillText("Waiting for RESTCONF samples", width / 2, height / 2);
+          ctx.textAlign = "left";
+          return;
+        }
+
+        const xAt = (index) => padding.left + (
+          this.samples.length === 1 ? plotWidth : (plotWidth * index) / (this.samples.length - 1)
+        );
+        const yAt = (value) => padding.top + plotHeight - (value / maximum) * plotHeight;
+
+        const gradient = ctx.createLinearGradient(0, padding.top, 0, height - padding.bottom);
+        gradient.addColorStop(0, `${this.color}45`);
+        gradient.addColorStop(1, `${this.color}00`);
+
+        ctx.beginPath();
+        let firstPoint = null;
+        let lastPoint = null;
+        this.samples.forEach((value, index) => {
+          if (value === null) return;
+          const point = { x: xAt(index), y: yAt(value) };
+          if (!firstPoint) {
+            firstPoint = point;
+            ctx.moveTo(point.x, point.y);
+          } else {
+            ctx.lineTo(point.x, point.y);
+          }
+          lastPoint = point;
+        });
+
+        if (firstPoint && lastPoint) {
+          ctx.lineTo(lastPoint.x, height - padding.bottom);
+          ctx.lineTo(firstPoint.x, height - padding.bottom);
+          ctx.closePath();
+          ctx.fillStyle = gradient;
+          ctx.fill();
+        }
+
+        ctx.beginPath();
+        firstPoint = null;
+        this.samples.forEach((value, index) => {
+          if (value === null) return;
+          const x = xAt(index);
+          const y = yAt(value);
+          if (!firstPoint) {
+            firstPoint = { x, y };
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+        });
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 2.5;
+        ctx.lineJoin = "round";
+        ctx.lineCap = "round";
+        ctx.stroke();
+
+        const firstLabel = this.labels[0];
+        const lastLabel = this.labels[this.labels.length - 1];
+        ctx.fillStyle = "#8294ad";
+        ctx.textAlign = "left";
+        ctx.fillText(firstLabel, padding.left, height - 8);
+        ctx.textAlign = "right";
+        ctx.fillText(lastLabel, width - padding.right, height - 8);
+        ctx.textAlign = "left";
       }
     }
 
+    const charts = {
+      cpu: new LineChart(
+        document.querySelector("#cpu-chart"), colors.cpu,
+        (value) => `${Math.round(value)}%`, 100,
+      ),
+      memory: new LineChart(
+        document.querySelector("#memory-chart"), colors.memory, formatBytes,
+      ),
+      input: new LineChart(
+        document.querySelector("#input-chart"), colors.input,
+        (value) => formatNumber(value, 0),
+      ),
+      output: new LineChart(
+        document.querySelector("#output-chart"), colors.output,
+        (value) => formatNumber(value, 0),
+      ),
+    };
+
+    let sampleCount = 0;
+
+    function setStatus(state, message) {
+      const dot = document.querySelector("#status-dot");
+      dot.className = `status-dot ${state}`;
+      document.querySelector("#status-text").textContent = message;
+    }
+
+    async function refreshMetrics() {
+      try {
+        const response = await fetch("/api/metrics", { cache: "no-store" });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) {
+          throw new Error(payload.error || `HTTP ${response.status}`);
+        }
+
+        const data = payload.data;
+        const timestamp = new Date(data.timestamp);
+        const timeLabel = timestamp.toLocaleTimeString([], {
+          hour: "2-digit", minute: "2-digit", second: "2-digit",
+        });
+        const cpu = data.cpu.value;
+        const memory = data.memory.value;
+        const input = data.gigabit_ethernet_1.input_rate;
+        const output = data.gigabit_ethernet_1.output_rate;
+
+        document.querySelector("#cpu-value").textContent =
+          cpu === null ? "--" : `${formatNumber(cpu)}%`;
+        document.querySelector("#memory-value").textContent = formatBytes(memory);
+        document.querySelector("#input-value").textContent = formatNumber(input, 0);
+        document.querySelector("#output-value").textContent = formatNumber(output, 0);
+
+        charts.cpu.add(cpu, timeLabel);
+        charts.memory.add(memory, timeLabel);
+        charts.input.add(input, timeLabel);
+        charts.output.add(output, timeLabel);
+
+        sampleCount += 1;
+        document.querySelector("#sample-count").textContent =
+          `${sampleCount} sample${sampleCount === 1 ? "" : "s"} collected`;
+        document.querySelector("#last-update").textContent = `Updated ${timeLabel}`;
+        setStatus("online", "RESTCONF connected");
+      } catch (error) {
+        setStatus("error", "Refresh failed");
+        document.querySelector("#last-update").textContent = error.message;
+      } finally {
+        window.setTimeout(refreshMetrics, 5000);
+      }
+    }
+
+    Object.values(charts).forEach((chart) => chart.draw());
     refreshMetrics();
-    setInterval(refreshMetrics, 5000);
   </script>
 </body>
 </html>

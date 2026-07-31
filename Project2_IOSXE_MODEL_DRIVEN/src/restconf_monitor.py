@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any
 
 import requests
@@ -40,19 +41,33 @@ def restconf_get(path: str) -> dict[str, Any]:
     return response.json() if response.text else {}
 
 
-def first_numeric_value(value: Any) -> int | float | None:
+def numeric_value(value: Any) -> int | float | None:
     if isinstance(value, bool):
         return None
     if isinstance(value, (int, float)):
         return value
+    if isinstance(value, str):
+        try:
+            return float(value) if "." in value else int(value)
+        except ValueError:
+            return None
+    return None
+
+
+def find_numeric_leaf(value: Any, leaf_name: str) -> int | float | None:
+    """Find a numeric JSON leaf without depending on its module prefix."""
     if isinstance(value, dict):
-        for child in value.values():
-            found = first_numeric_value(child)
+        for key, child in value.items():
+            if key.split(":")[-1] == leaf_name:
+                found = numeric_value(child)
+                if found is not None:
+                    return found
+            found = find_numeric_leaf(child, leaf_name)
             if found is not None:
                 return found
     if isinstance(value, list):
         for item in value:
-            found = first_numeric_value(item)
+            found = find_numeric_leaf(item, leaf_name)
             if found is not None:
                 return found
     return None
@@ -64,19 +79,21 @@ def get_monitoring_snapshot() -> dict[str, Any]:
     interface_data = restconf_get(INTERFACE_GIG1_URI)
 
     return {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "cpu": {
             "uri": CPU_URI,
-            "value": first_numeric_value(cpu_data),
-            "raw": cpu_data,
+            "value": find_numeric_leaf(cpu_data, "five-seconds"),
+            "unit": "percent",
         },
         "memory": {
             "uri": MEMORY_URI,
-            "value": first_numeric_value(memory_data),
-            "raw": memory_data,
+            "value": find_numeric_leaf(memory_data, "used-memory"),
+            "unit": "bytes",
         },
         "gigabit_ethernet_1": {
             "uri": INTERFACE_GIG1_URI,
-            "value": first_numeric_value(interface_data),
-            "raw": interface_data,
+            "input_rate": find_numeric_leaf(interface_data, "rx-pps"),
+            "output_rate": find_numeric_leaf(interface_data, "tx-pps"),
+            "unit": "packets_per_second",
         },
     }

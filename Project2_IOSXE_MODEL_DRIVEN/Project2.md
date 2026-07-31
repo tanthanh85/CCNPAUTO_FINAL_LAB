@@ -211,15 +211,15 @@ After completing the function, add one more static route to [data/static_routes.
 
 ## Task 3: Complete Cisco IOS XE RESTCONF Monitoring URIs
 
-The project includes a small Flask management portal that refreshes every 5 seconds. Most of the code is complete, but the Cisco IOS XE operational RESTCONF URIs are missing.
+The project includes a responsive Flask operations dashboard that refreshes every 5 seconds and maintains a rolling history of 60 samples. It presents line charts for CPU utilization, used memory, GigabitEthernet1 input packet rate, and GigabitEthernet1 output packet rate. Most of the code is complete, but the Cisco IOS XE operational RESTCONF URIs are missing.
 
 Use local Cisco Yangsuite or Cisco DevNet Sandbox Yangsuite at `http://10.10.20.50:8480` to locate operational paths for:
 
 - five-second CPU utilization under `Cisco-IOS-XE-process-cpu-oper`,
 - used processor memory under `Cisco-IOS-XE-memory-oper`,
-- and input octets for `GigabitEthernet1` under `Cisco-IOS-XE-interfaces-oper`.
+- and the `GigabitEthernet1` statistics container under `Cisco-IOS-XE-interfaces-oper`, including `rx-pps` and `tx-pps`.
 
-For CPU, inspect `cpu-usage/cpu-utilization/five-seconds`. For memory, inspect `memory-statistics/memory-statistic`, select the processor-memory list entry exposed by the device, and locate `used-memory`. For the interface, inspect `interfaces/interface/statistics` and select `in-octets`. Let Yangsuite generate the exact RESTCONF list-key syntax used by the active IOS XE image.
+For CPU, inspect `cpu-usage/cpu-utilization/five-seconds`. For memory, inspect `memory-statistics/memory-statistic`, select the processor-memory list entry exposed by the device, and locate `used-memory`. For the interface, select `interfaces/interface/statistics` for `GigabitEthernet1`. The response from that container must include both `rx-pps` and `tx-pps`, which IOS XE defines as receive and transmit packets per second. Let Yangsuite generate the exact RESTCONF list-key syntax used by the active IOS XE image.
 
 For each metric:
 
@@ -251,7 +251,9 @@ For each metric:
    **SSL certificate verification** if certificate validation prevents the
    request.
 10. Select **Send** and confirm that IOS XE returns `200 OK`. Inspect the JSON
-   response and verify that it includes the field consumed by the portal.
+    response and verify that the CPU request contains `five-seconds`, the
+    memory request contains `used-memory`, and the interface statistics
+    request contains both `rx-pps` and `tx-pps`.
 11. When selecting a memory or interface list entry, allow Yangsuite to
     generate the RESTCONF list-key syntax. Use the processor-memory entry
     exposed by the device and the `GigabitEthernet1` interface entry; do not
@@ -274,7 +276,7 @@ Use this format:
 ```python
 CPU_URI = "/Cisco-IOS-XE-process-cpu-oper:..."
 MEMORY_URI = "/Cisco-IOS-XE-memory-oper:..."
-INTERFACE_GIG1_URI = "/Cisco-IOS-XE-interfaces-oper:..."
+INTERFACE_GIG1_URI = "/Cisco-IOS-XE-interfaces-oper:.../statistics"
 ```
 
 Run the portal:
@@ -289,7 +291,7 @@ Open:
 http://127.0.0.1:5060
 ```
 
-The portal should show CPU, memory, and GigabitEthernet1 information and refresh automatically.
+The dashboard should display four current values and four line charts. CPU is shown as a percentage, memory is converted to an appropriate binary unit, and the two GigabitEthernet1 charts show packets per second. Leave the page open for at least 30 seconds and confirm that each chart receives multiple samples.
 
 ## Self-Grading
 
