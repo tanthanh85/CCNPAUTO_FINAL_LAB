@@ -124,7 +124,6 @@ The project loads this file automatically with `python-dotenv`. Do not run
 
 ```bash
 source final_lab2/bin/activate
-nano .env
 python scripts/configure_static_routes.py --dry-run
 ```
 
