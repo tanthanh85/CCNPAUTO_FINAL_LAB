@@ -16,13 +16,6 @@ from src.route_source import load_static_routes
 from src.settings import load_settings
 
 
-def netconf_reply_is_ok(reply_xml: str) -> bool:
-    """Return True when the NETCONF rpc-reply contains <ok/>."""
-    reply = xmltodict.parse(reply_xml)
-    rpc_reply = reply.get("rpc-reply", {})
-    return isinstance(rpc_reply, dict) and "ok" in rpc_reply
-
-
 def render_static_route_payload() -> str:
     routes = load_static_routes(str(ROOT / "data" / "static_routes.yaml"))
     env = Environment(
@@ -61,7 +54,9 @@ def main() -> None:
         timeout=30,
     ) as connection:
         response = connection.edit_config(target="running", config=payload)
-    if netconf_reply_is_ok(response.xml):
+
+    reply = xmltodict.parse(response.xml)
+    if "ok" in reply.get("rpc-reply", {}):
         print("NETCONF result: configuration accepted")
     else:
         print("NETCONF result: <ok/> was not returned")
