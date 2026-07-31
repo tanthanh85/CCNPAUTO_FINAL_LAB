@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import ast
-import re
 import sys
-import xml.etree.ElementTree as ET
 from pathlib import Path
+from typing import Any
 
+import xmltodict
 import yaml
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
@@ -26,6 +26,35 @@ def print_result(
     RESULTS.append((name, points, maximum, expected))
     if points < maximum:
         print(f"  Expected for full points: {expected}")
+
+
+def xml_local_name(key: str) -> str:
+    """Return an element name without an attribute marker or prefix."""
+    return key.lstrip("@").split(":")[-1]
+
+
+def xml_child(data: dict[str, Any], local_name: str) -> Any:
+    """Return a direct child from an xmltodict dictionary."""
+    for key, value in data.items():
+        if xml_local_name(key) == local_name:
+            return value
+    return None
+
+
+def xml_values(data: Any, local_name: str) -> list[str]:
+    """Collect text values for matching elements anywhere below data."""
+    values: list[str] = []
+    if isinstance(data, dict):
+        for key, value in data.items():
+            if xml_local_name(key) == local_name and not isinstance(
+                value, (dict, list)
+            ):
+                values.append("" if value is None else str(value).strip())
+            values.extend(xml_values(value, local_name))
+    elif isinstance(data, list):
+        for item in data:
+            values.extend(xml_values(item, local_name))
+    return values
 
 
 def grade_static_route_template() -> int:
@@ -51,7 +80,7 @@ def grade_static_route_template() -> int:
             lstrip_blocks=True,
         )
         rendered = env.get_template("static_routes.xml.j2").render(static_routes=data["static_routes"])
-        ET.fromstring(rendered)
+        xml_document = xmltodict.parse(rendered)
     except Exception as exc:
         print_result(
             "Task 1 NETCONF payload",
@@ -63,15 +92,25 @@ def grade_static_route_template() -> int:
         )
         return 0
 
+    config = xml_child(xml_document, "config")
+    native = xml_child(config, "native") if isinstance(config, dict) else None
+    ip = xml_child(native, "ip") if isinstance(native, dict) else None
+    route = xml_child(ip, "route") if isinstance(ip, dict) else None
+    route_entries = (
+        xml_child(route, "ip-route-interface-forwarding-list")
+        if isinstance(route, dict)
+        else None
+    )
     native_namespace = "http://cisco.com/ns/yang/Cisco-IOS-XE-native"
-    required_paths = [
-        f".//{{{native_namespace}}}native",
-        f".//{{{native_namespace}}}ip",
-        f".//{{{native_namespace}}}route",
-        f".//{{{native_namespace}}}ip-route-interface-forwarding-list",
-    ]
-    root = ET.fromstring(rendered)
-    if any(root.find(path) is None for path in required_paths):
+    native_xmlns = native.get("@xmlns") if isinstance(native, dict) else None
+    if (
+        not isinstance(config, dict)
+        or not isinstance(native, dict)
+        or native_xmlns != native_namespace
+        or not isinstance(ip, dict)
+        or not isinstance(route, dict)
+        or route_entries is None
+    ):
         print_result(
             "Task 1 NETCONF payload",
             4,
@@ -82,16 +121,9 @@ def grade_static_route_template() -> int:
         )
         return 4
 
-    def leaf_values(local_name: str) -> list[str]:
-        return [
-            (element.text or "").strip()
-            for element in root.iter()
-            if element.tag.rsplit("}", 1)[-1] == local_name
-        ]
-
-    prefix_values = leaf_values("prefix")
-    mask_values = leaf_values("mask")
-    next_hop_values = leaf_values("fwd")
+    prefix_values = xml_values(route_entries, "prefix")
+    mask_values = xml_values(route_entries, "mask")
+    next_hop_values = xml_values(route_entries, "fwd")
     missing: list[str] = []
     for route in data["static_routes"]:
         if route["prefix"] not in prefix_values:
@@ -101,12 +133,10 @@ def grade_static_route_template() -> int:
         if route["next_hop"] not in next_hop_values:
             missing.append(f"next_hop={route['next_hop']}")
 
-    route_entries = root.findall(
-        f".//{{{native_namespace}}}ip-route-interface-forwarding-list"
-    )
-    if len(route_entries) < len(data["static_routes"]):
+    route_entry_count = len(route_entries) if isinstance(route_entries, list) else 1
+    if route_entry_count < len(data["static_routes"]):
         missing.append(
-            f"route_entries={len(route_entries)} "
+            f"route_entries={route_entry_count} "
             f"(expected at least {len(data['static_routes'])})"
         )
 

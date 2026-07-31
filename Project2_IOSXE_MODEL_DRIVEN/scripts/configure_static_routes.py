@@ -3,9 +3,13 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+from typing import Any
+from xml.parsers.expat import ExpatError
 
+import xmltodict
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 from ncclient import manager
+from ncclient.operations import RaiseMode
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -13,6 +17,90 @@ sys.path.insert(0, str(ROOT))
 
 from src.route_source import load_static_routes
 from src.settings import load_settings
+
+
+def child_with_local_name(
+    data: dict[str, Any], local_name: str
+) -> tuple[bool, Any]:
+    """Find an XML dictionary child without depending on a namespace prefix."""
+    for key, value in data.items():
+        if key.lstrip("@").split(":")[-1] == local_name:
+            return True, value
+    return False, None
+
+
+def xml_text(value: Any, default: str) -> str:
+    """Return text from a normal element or an element with XML attributes."""
+    if value is None:
+        return default
+    if isinstance(value, dict):
+        text_found, text = child_with_local_name(value, "#text")
+        return str(text) if text_found else default
+    return str(value)
+
+
+def parse_netconf_reply(reply_xml: str) -> dict[str, Any]:
+    """Parse a NETCONF rpc-reply and return a small operational summary."""
+    try:
+        document = xmltodict.parse(reply_xml)
+    except ExpatError as exc:
+        raise ValueError(f"The NETCONF reply is not valid XML: {exc}") from exc
+
+    reply_found, rpc_reply = child_with_local_name(document, "rpc-reply")
+    if not reply_found or not isinstance(rpc_reply, dict):
+        raise ValueError("The XML response does not contain an rpc-reply element")
+
+    message_id_found, message_id = child_with_local_name(rpc_reply, "message-id")
+    if not message_id_found:
+        message_id = "not supplied"
+    else:
+        message_id = xml_text(message_id, "not supplied")
+
+    ok_found, _ = child_with_local_name(rpc_reply, "ok")
+    if ok_found:
+        return {
+            "status": "ok",
+            "message_id": message_id,
+            "errors": [],
+        }
+
+    errors_found, rpc_errors = child_with_local_name(rpc_reply, "rpc-error")
+    if not errors_found:
+        return {
+            "status": "unknown",
+            "message_id": message_id,
+            "errors": ["The reply contains neither <ok/> nor <rpc-error>."],
+        }
+
+    if not isinstance(rpc_errors, list):
+        rpc_errors = [rpc_errors]
+
+    errors: list[str] = []
+    for error in rpc_errors:
+        if not isinstance(error, dict):
+            errors.append(str(error))
+            continue
+        type_found, error_type = child_with_local_name(error, "error-type")
+        tag_found, error_tag = child_with_local_name(error, "error-tag")
+        message_found, error_message = child_with_local_name(
+            error, "error-message"
+        )
+        if not type_found:
+            error_type = "unknown-type"
+        if not tag_found:
+            error_tag = "unknown-tag"
+        if not message_found:
+            error_message = "No message supplied"
+        error_type = xml_text(error_type, "unknown-type")
+        error_tag = xml_text(error_tag, "unknown-tag")
+        error_message = xml_text(error_message, "No message supplied")
+        errors.append(f"{error_type}/{error_tag}: {error_message}")
+
+    return {
+        "status": "error",
+        "message_id": message_id,
+        "errors": errors,
+    }
 
 
 def render_static_route_payload() -> str:
@@ -51,9 +139,18 @@ def main() -> None:
         look_for_keys=False,
         allow_agent=False,
         timeout=30,
+        errors_params={"raise_mode": RaiseMode.NONE},
     ) as connection:
         response = connection.edit_config(target="running", config=payload)
-        print(response)
+        result = parse_netconf_reply(response.xml)
+
+    print(f"NETCONF message ID: {result['message_id']}")
+    if result["status"] == "ok":
+        print("NETCONF result: configuration accepted (<ok/>)")
+    else:
+        print(f"NETCONF result: {result['status']}")
+        for error in result["errors"]:
+            print(f"- {error}")
 
 
 if __name__ == "__main__":

@@ -68,6 +68,14 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
+The dependency list includes the `xmltodict` package. Although it is
+sometimes informally called “xml2dict,” the installable package and Python
+module are both named `xmltodict`. The project uses it to convert the NETCONF
+XML reply into nested Python dictionaries, which are easier to inspect than a
+raw XML string. The self-grading script also uses `xmltodict` to parse and
+validate the XML rendered from the Jinja2 template, so Project 2 follows one
+consistent XML parsing approach.
+
 Static-route intent is already defined in [data/static_routes.yaml](data/static_routes.yaml). The starter template already contains the NETCONF `<config>` root, the Cisco IOS XE Native `native/ip/route` hierarchy, and the Jinja2 loop over `static_routes`. Open local Cisco Yangsuite at `https://localhost:8443` or Cisco DevNet Sandbox Yangsuite at `http://10.10.20.50:8480`. Your task is to use it to construct the correct **Cisco IOS XE Native YANG** XML structure for one static-route entry and place that structure inside the loop in [templates/static_routes.xml.j2](templates/static_routes.xml.j2).
 
 In Yangsuite, choose **`Cisco-IOS-XE-native`** with its dependencies. Do not use OpenConfig or the generic IETF routing model for this task. The native static-route hierarchy accepts the destination address and subnet mask as separate values, matching the supplied YAML source.
@@ -121,6 +129,34 @@ Then add a second route to [data/static_routes.yaml](data/static_routes.yaml) an
 ```bash
 python scripts/configure_static_routes.py
 ```
+
+After `ncclient` sends the `<edit-config>` request, the router returns an XML
+`<rpc-reply>`. The supplied Python code reads `response.xml` and parses it with
+`xmltodict`:
+
+```python
+document = xmltodict.parse(response.xml)
+```
+
+An XML element becomes a dictionary key, a nested element becomes a nested
+dictionary, and an XML attribute such as `message-id` becomes a key beginning
+with `@`. The parser does not assume that the device will use a particular XML
+namespace prefix. It checks the local element names and reports one of these
+results:
+
+```text
+NETCONF message ID: urn:uuid:...
+NETCONF result: configuration accepted (<ok/>)
+```
+
+If IOS XE rejects the request, the same parser extracts the `error-type`,
+`error-tag`, and `error-message` values from each `<rpc-error>` rather than
+printing an unstructured XML response. Therefore, read the reported error
+before changing the payload; a namespace or hierarchy error requires a
+different correction from an invalid next-hop value. The supplied connection
+sets the ncclient raise mode to `NONE` so that the script can receive and parse
+an `<rpc-error>` reply itself. This does not ignore the failure: the parsed
+status and every returned error are displayed to the learner.
 
 Verify on the router:
 
