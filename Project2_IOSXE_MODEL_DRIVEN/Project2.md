@@ -81,8 +81,8 @@ Use Yangsuite to understand and verify the supplied XML structure:
 1. In **Setup > Device profiles**, create or refresh the IOS XE reservation profile with NETCONF port `830`.
 2. In **Setup > YANG files and repositories**, retrieve the schema list from that device and download `Cisco-IOS-XE-native` with its dependencies.
 3. Add those files to a YANG module set.
-4. Open **Explore**, select the IOS XE YANG set, load `Cisco-IOS-XE-native`, and expand the tree to `native/ip/route`. Select the route nodes and use the XPath shown by Yangsuite to confirm their location in the model.
-5. In **Protocols > NETCONF**, build one sample `edit-config` request and compare its `<config>` body with the supplied template.
+4. In **Protocols > NETCONF**, select the device and module set, load `Cisco-IOS-XE-native`, and locate the `native/ip/route` subtree.
+5. Build one sample `edit-config` request and compare its `<config>` body with the supplied template.
 6. Confirm that the supplied `prefix`, `mask`, `fwd-list`, and `fwd` elements follow the hierarchy exposed by the reserved router.
 7. Leave the supplied XML elements and variables in place. Only add the missing opening and closing Jinja2 loop statements.
 
@@ -221,63 +221,43 @@ Use local Cisco Yangsuite or Cisco DevNet Sandbox Yangsuite at `http://10.10.20.
 
 For CPU, inspect `cpu-usage/cpu-utilization/five-seconds`. For memory, inspect `memory-statistics/memory-statistic`, select the processor-memory list entry exposed by the device, and locate `used-memory`. For the interface, inspect `interfaces/interface/statistics` and select `in-octets`. Let Yangsuite generate the exact RESTCONF list-key syntax used by the active IOS XE image.
 
-For each metric, first use **Explore** to identify the correct model XPath and
-then use the RESTCONF tool to generate the corresponding resource URI:
+For each metric:
 
 1. Use the device profile and the YANG set downloaded from the active IOS XE reservation.
 2. Confirm that the module set includes `Cisco-IOS-XE-process-cpu-oper`, `Cisco-IOS-XE-memory-oper`, and `Cisco-IOS-XE-interfaces-oper` with their dependencies.
-3. Open **Explore** from the Yangsuite menu and select the IOS XE YANG set.
-4. Select the relevant operational module. Use the tree search to locate the required leaf, then expand its parent containers and lists so that the complete hierarchy is visible.
-5. Select the leaf and record the XPath displayed by Yangsuite. Confirm that the XPath begins in the correct module and ends at the required leaf:
-
-   ```text
-   CPU:       /process-cpu-ios-xe-oper:cpu-usage/cpu-utilization/five-seconds
-   Memory:    /memory-ios-xe-oper:memory-statistics/memory-statistic/.../used-memory
-   Interface: /interfaces-ios-xe-oper:interfaces/interface/.../statistics/in-octets
-   ```
-
-   The ellipses indicate list-key selections that must come from the active
-   device. Do not paste the ellipses into a request.
-6. For a list such as `memory-statistic` or `interface`, inspect its key leaf in **Explore**. Record the processor-memory key returned by the router and the interface key `GigabitEthernet1`. This step prevents learners from guessing the list-key order or syntax.
-7. After confirming the XPath, select **Protocols > RESTCONF**, load the same module, locate the same node, and choose **Generate APIs**. Yangsuite translates the selected model path and list keys into a RESTCONF resource URI.
-8. Use the generated API information to identify the `GET` resource path.
+3. Select **Protocols > RESTCONF**, load the relevant Cisco operational module, and use **Search module** to locate the required container or leaf.
+4. Select that node and choose **Generate APIs**.
+5. Use the generated API information to identify the `GET` resource path.
    Copy the device resource path that follows `/restconf/data/`; do not copy a
    Yangsuite proxy hostname or proxy prefix. Validate the request directly
    against IOS XE with Postman.
-9. Open Postman and create a new **HTTP Request**. Set the method to `GET` and
+6. Open Postman and create a new **HTTP Request**. Set the method to `GET` and
    enter the direct IOS XE URL:
 
    ```text
    https://<IOSXE_HOST>:<IOSXE_RESTCONF_PORT>/restconf/data/<generated-resource-path>
    ```
 
-10. On the **Authorization** tab, select **Basic Auth** and enter the active IOS
+7. On the **Authorization** tab, select **Basic Auth** and enter the active IOS
    XE reservation username and password.
-11. On the **Headers** tab, add:
+8. On the **Headers** tab, add:
 
    ```text
    Accept: application/yang-data+json
    ```
 
-12. The sandbox normally uses a self-signed HTTPS certificate. For this
+9. The sandbox normally uses a self-signed HTTPS certificate. For this
    controlled assessment only, open **Postman Settings > General** and disable
    **SSL certificate verification** if certificate validation prevents the
    request.
-13. Select **Send** and confirm that IOS XE returns `200 OK`. Inspect the JSON
+10. Select **Send** and confirm that IOS XE returns `200 OK`. Inspect the JSON
    response and verify that it includes the field consumed by the portal.
-14. When selecting a memory or interface list entry, allow Yangsuite to
+11. When selecting a memory or interface list entry, allow Yangsuite to
     generate the RESTCONF list-key syntax. Use the processor-memory entry
     exposed by the device and the `GigabitEthernet1` interface entry; do not
     paste an XPath predicate into a RESTCONF URI.
-15. Repeat the Postman request for CPU, memory, and interface data before
+12. Repeat the Postman request for CPU, memory, and interface data before
     placing any resource path into Python.
-
-An XPath describes a node in the YANG data tree and normally uses the YANG
-module prefix, such as `process-cpu-ios-xe-oper`. A RESTCONF URI identifies
-that node as an HTTP resource and commonly begins with the module name, such
-as `Cisco-IOS-XE-process-cpu-oper:cpu-usage`. Use **Explore** to prove that the
-model path is correct, but place only the generated RESTCONF resource path in
-`restconf_monitor.py`.
 
 Open [src/restconf_monitor.py](src/restconf_monitor.py) and complete:
 
