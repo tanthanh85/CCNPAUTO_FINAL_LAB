@@ -158,6 +158,18 @@ sets the ncclient raise mode to `NONE` so that the script can receive and parse
 an `<rpc-error>` reply itself. This does not ignore the failure: the parsed
 status and every returned error are displayed to the learner.
 
+The script also parses the rendered request with `xmltodict` before opening a
+NETCONF session. This preflight check confirms that the document is
+well-formed, that its outer element is `<config>`, and that the root uses the
+NETCONF base namespace. Remember that parsing produces a Python dictionary
+for inspection only. `ncclient.edit_config()` must receive the original XML
+string, not the dictionary returned by `xmltodict.parse()`.
+
+If the script reports that the root is `<rpc>` or `<edit-config>`, return to
+Yangsuite and copy only the generated `<config>...</config>` body. The
+`ncclient` library creates the surrounding `<rpc>` and `<edit-config>`
+elements automatically.
+
 Verify on the router:
 
 ```text
