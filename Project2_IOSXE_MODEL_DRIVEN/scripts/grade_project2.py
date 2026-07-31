@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import hashlib
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -296,25 +297,19 @@ def grade_restconf_uris() -> int:
     }
 
     weights = {"CPU_URI": 5, "MEMORY_URI": 5, "INTERFACE_GIG1_URI": 5}
-    expected_paths = {
-        "CPU_URI": (
-            "/Cisco-IOS-XE-process-cpu-oper:cpu-usage/"
-            "cpu-utilization/five-seconds"
-        ),
-        "MEMORY_URI": (
-            "/Cisco-IOS-XE-memory-oper:memory-statistics/memory-statistic"
-        ),
-        "INTERFACE_GIG1_URI": (
-            "/Cisco-IOS-XE-interfaces-oper:interfaces/"
-            "interface=GigabitEthernet1/statistics"
-        ),
+    # Store digests rather than solution paths so the self-grader checks the
+    # learners' Yangsuite work without publishing the answers in its source.
+    expected_digests = {
+        "CPU_URI": "4a33df9fc1be3c537845377fb014e59f75253d2086fcc20fb8806daaa94eb0fb",
+        "MEMORY_URI": "0bd14179f49f605acc4664c766a2b2aec36fed519804aec569d72e494018eb51",
+        "INTERFACE_GIG1_URI": "8b88b5d8e5e6fc17ccb1591151082115a5516e49fa767556bcb785abcab86073",
     }
     points = 0
     detail = []
     for name, value in constants.items():
-        valid = (
-            value.rstrip("/") == expected_paths[name]
-        )
+        normalized = value.rstrip("/")
+        digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+        valid = digest == expected_digests[name]
         if valid:
             points += weights[name]
             detail.append(f"{name} completed (+{weights[name]})")
@@ -326,9 +321,9 @@ def grade_restconf_uris() -> int:
         points,
         15,
         "; ".join(detail),
-        "Use the three exact Yangsuite-validated resource paths shown in "
-        "Task 3. Include the leading '/', but omit the scheme, device address, "
-        "port, and /restconf/data base path.",
+        "Generate all three resource paths with the operational YANG models "
+        "identified in Task 3. Include the leading '/', but omit the scheme, "
+        "device address, port, and /restconf/data base path.",
     )
     return points
 

@@ -219,61 +219,17 @@ Use local Cisco Yangsuite or Cisco DevNet Sandbox Yangsuite at `http://10.10.20.
 - the memory-pool list under `Cisco-IOS-XE-memory-oper`,
 - and the `GigabitEthernet1` statistics container under `Cisco-IOS-XE-interfaces-oper`, including `rx-pps` and `tx-pps`.
 
-The monitoring code deliberately requests the complete memory-pool list. It then selects the pool whose `name` is `Processor` and reads its `used-memory` value. In contrast, the CPU request addresses one leaf directly, while the interface request addresses the complete statistics container so that one response carries both `rx-pps` and `tx-pps`.
+The monitoring code expects the complete memory-pool list. It then selects the pool whose `name` is `Processor` and reads its `used-memory` value. In contrast, the CPU request addresses one value directly, while the interface request addresses a statistics node that returns both `rx-pps` and `tx-pps`.
 
 ### Locate the paths in Yangsuite
 
 1. Open Yangsuite and select **Setup > Device profiles**. Select the profile for the active IOS XE reservation and confirm that its NETCONF connection is available.
 2. Select **Setup > YANG files and repositories**, then confirm that the device YANG set contains `Cisco-IOS-XE-process-cpu-oper`, `Cisco-IOS-XE-memory-oper`, and `Cisco-IOS-XE-interfaces-oper` together with their dependencies.
 3. Open **Protocols > RESTCONF**. Select the IOS XE device profile and its YANG set.
-4. For CPU, open `Cisco-IOS-XE-process-cpu-oper` and expand this hierarchy:
-
-   ```text
-   cpu-usage
-   └── cpu-utilization
-       └── five-seconds
-   ```
-
-   Select `five-seconds`, generate the `GET` API, and identify this resource path:
-
-   ```text
-   /Cisco-IOS-XE-process-cpu-oper:cpu-usage/cpu-utilization/five-seconds
-   ```
-
-5. For memory, open `Cisco-IOS-XE-memory-oper` and expand:
-
-   ```text
-   memory-statistics
-   └── memory-statistic [name]
-       ├── name
-       ├── total-memory
-       ├── used-memory
-       └── free-memory
-   ```
-
-   Select the `memory-statistic` list itself, not an individual list entry or leaf. Generate the `GET` API and identify:
-
-   ```text
-   /Cisco-IOS-XE-memory-oper:memory-statistics/memory-statistic
-   ```
-
-6. For interface packet rates, open `Cisco-IOS-XE-interfaces-oper` and expand:
-
-   ```text
-   interfaces
-   └── interface [name]
-       └── statistics
-           ├── rx-pps
-           └── tx-pps
-   ```
-
-   Select the `statistics` container. When Yangsuite requests the interface list key, enter `GigabitEthernet1`. Generate the `GET` API and identify:
-
-   ```text
-   /Cisco-IOS-XE-interfaces-oper:interfaces/interface=GigabitEthernet1/statistics
-   ```
-
-7. In each generated URL, keep only the resource path following `/restconf/data`. Do not copy a Yangsuite proxy hostname, the router hostname, or `/restconf/data` into the Python constants.
+4. For CPU, load `Cisco-IOS-XE-process-cpu-oper`. Search the model for the `five-seconds` leaf, select it, and generate its RESTCONF `GET` API.
+5. For memory, load `Cisco-IOS-XE-memory-oper`. Search for the `memory-statistic` node and select the complete list rather than one keyed list entry or only the `used-memory` child. Generate its RESTCONF `GET` API. Yangsuite identifies a list with its key, so confirm that `name` is shown as the key before continuing.
+6. For interface packet rates, load `Cisco-IOS-XE-interfaces-oper`. Search for the `statistics` node beneath an interface. Select the statistics container rather than an individual counter. When Yangsuite requests the interface list key, enter `GigabitEthernet1`, and then generate the RESTCONF `GET` API.
+7. Study each generated URL and determine the resource path required by the Python program. Keep only the portion that follows `/restconf/data`. Do not copy a Yangsuite proxy hostname, the router hostname, or `/restconf/data` into the Python constants.
 
 ### Validate the paths with Postman
 
@@ -317,13 +273,7 @@ INTERFACE_GIG1_URI = ""
 
 Place the RESTCONF data paths only. Do not include the scheme, hostname, or `/restconf/data` base in these constants. The code adds the base URL automatically.
 
-Enter these exact resource paths:
-
-```python
-CPU_URI = "/Cisco-IOS-XE-process-cpu-oper:cpu-usage/cpu-utilization/five-seconds"
-MEMORY_URI = "/Cisco-IOS-XE-memory-oper:memory-statistics/memory-statistic"
-INTERFACE_GIG1_URI = "/Cisco-IOS-XE-interfaces-oper:interfaces/interface=GigabitEthernet1/statistics"
-```
+Do not guess the paths or copy them from another IOS XE model. Generate each path in Yangsuite, validate it with Postman, and then enter it into the corresponding constant. The self-grader awards five points for each correct path.
 
 Run the portal:
 
