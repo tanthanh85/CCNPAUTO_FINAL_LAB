@@ -174,7 +174,9 @@ VAULT_ADDR=http://127.0.0.1:8200 VAULT_TOKEN=root \
   password='<iosxe-password>'
 ```
 
-Update `.env`:
+Open the project-root `.env` file. Change the existing setting from
+`USE_VAULT=false` to `USE_VAULT=true`, and confirm that the remaining Vault
+settings match the service you started:
 
 ```text
 USE_VAULT=true
@@ -185,7 +187,9 @@ VAULT_SECRET_PATH=ccnpauto/final/iosxe
 
 The inline variables above apply only to the single Vault CLI command. The
 Python application reads the same Vault settings automatically from the
-project-root `.env` file.
+project-root `.env` file. If `USE_VAULT` remains `false`, the application will
+continue reading `IOSXE_USERNAME` and `IOSXE_PASSWORD` instead of calling your
+Vault function.
 
 Open [src/vault_credentials.py](src/vault_credentials.py) and complete `get_iosxe_credentials_from_vault()`.
 
@@ -213,6 +217,10 @@ of the function:
 Do not leave the `raise NotImplementedError(...)` statement active, even when
 it appears after your `return` statement. The grader checks that the starter
 placeholder has been deliberately disabled.
+
+Before testing, check `.env` once more and confirm that it contains
+`USE_VAULT=true`. Stop and restart the Python script or Flask portal after
+changing this setting so the new process loads the updated environment.
 
 After completing the function, add one more static route to [data/static_routes.yaml](data/static_routes.yaml), rerun the script, and verify the new route.
 
