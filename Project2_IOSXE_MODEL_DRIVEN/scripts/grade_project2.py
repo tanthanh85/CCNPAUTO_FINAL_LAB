@@ -296,37 +296,24 @@ def grade_restconf_uris() -> int:
     }
 
     weights = {"CPU_URI": 5, "MEMORY_URI": 5, "INTERFACE_GIG1_URI": 5}
-    required_fragments = {
+    expected_paths = {
         "CPU_URI": (
-            "Cisco-IOS-XE-process-cpu-oper:cpu-usage",
-            "cpu-utilization",
-            "five-seconds",
+            "/Cisco-IOS-XE-process-cpu-oper:cpu-usage/"
+            "cpu-utilization/five-seconds"
         ),
         "MEMORY_URI": (
-            "Cisco-IOS-XE-memory-oper:memory-statistics",
-            "memory-statistic=",
-            "used-memory",
+            "/Cisco-IOS-XE-memory-oper:memory-statistics/memory-statistic"
         ),
         "INTERFACE_GIG1_URI": (
-            "Cisco-IOS-XE-interfaces-oper:interfaces",
-            "interface=GigabitEthernet1",
-            "statistics",
+            "/Cisco-IOS-XE-interfaces-oper:interfaces/"
+            "interface=GigabitEthernet1/statistics"
         ),
     }
     points = 0
     detail = []
     for name, value in constants.items():
-        lower_value = value.lower()
         valid = (
-            value.startswith("/")
-            and "/restconf/data/" not in value
-            and "TODO" not in value.upper()
-            and "REPLACE" not in value.upper()
-            and all(fragment.lower() in lower_value for fragment in required_fragments[name])
-            and (
-                name != "INTERFACE_GIG1_URI"
-                or value.rstrip("/").lower().endswith("/statistics")
-            )
+            value.rstrip("/") == expected_paths[name]
         )
         if valid:
             points += weights[name]
@@ -339,11 +326,9 @@ def grade_restconf_uris() -> int:
         points,
         15,
         "; ".join(detail),
-        "Use Yangsuite-validated device resource paths only. Each constant "
-        "must begin with '/', omit scheme/host and /restconf/data, and use the "
-        "Cisco IOS XE CPU, memory, or interfaces operational model expected "
-        "for that metric. The interface URI must end at the statistics "
-        "container so one response includes both rx-pps and tx-pps.",
+        "Use the three exact Yangsuite-validated resource paths shown in "
+        "Task 3. Include the leading '/', but omit the scheme, device address, "
+        "port, and /restconf/data base path.",
     )
     return points
 
